@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Node } from '../nodes/entities/node.entity.js';
@@ -58,26 +54,13 @@ export class VpnService {
   }
 
   /**
-   * Removes a peer. With `publicKey`, targets that peer: anonymous peers can be
-   * removed by anyone, user-owned ones only by their owner. Without it, removes
-   * the caller's own peer on the node (authenticated callers only).
+   * Removes the peer with this public key from its node. Anonymous peers can be
+   * removed by anyone; user-owned ones only by their owner.
    */
-  async disconnect(
-    userId: string | null,
-    nodeId: string,
-    publicKey?: string,
-  ): Promise<void> {
-    if (!userId && !publicKey) {
-      throw new BadRequestException('publicKey is required');
-    }
-
-    const node = await this.getNode(nodeId);
-    const connection = publicKey
-      ? await this.connectionsRepository.findOneBy({ nodeId, publicKey })
-      : await this.connectionsRepository.findOneBy({
-          userId: userId!,
-          nodeId,
-        });
+  async disconnect(userId: string | null, publicKey: string): Promise<void> {
+    const connection = await this.connectionsRepository.findOneBy({
+      publicKey,
+    });
 
     // A user-owned peer is reported as missing to anyone else, so public keys
     // can't be used to probe or drop other users' connections.
@@ -85,6 +68,7 @@ export class VpnService {
       throw new NotFoundException('Connection not found');
     }
 
+    const node = await this.getNode(connection.nodeId);
     await this.nodeApi.disconnect(node, connection.publicKey);
     await this.connectionsRepository.delete({ id: connection.id });
   }

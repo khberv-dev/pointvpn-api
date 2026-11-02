@@ -20,14 +20,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## VPN
 
-`src/modules/vpn/` provisions peers on nodes. Routes: `POST /connect/:nodeId` → 200 with the node's connect payload **re-returned unchanged**; `POST /disconnect/:nodeId` (optional body `{ publicKey }`) → 204.
+`src/modules/vpn/` provisions peers on nodes. Routes: `POST /connect/:nodeId` → 200 with the node's connect payload **re-returned unchanged**; `POST /disconnect/:publicKey` → 204, where `publicKey` is the peer key from the connect response, URL-encoded in the path (the Flutter app sends it this way).
 
 - Both routes use `OptionalJwtAuthGuard` (`src/common/guards/jwt-auth.guard.ts`): no `Authorization` header = anonymous (`@CurrentUserId()` is `null`); a header that is present but invalid is still 401.
 - Anonymous connects store `userId = null` and create a new peer every time. Authenticated connects keep at most one peer per user per node.
-- Disconnect with `publicKey` targets that peer: anonymous peers can be removed by anyone who knows the key, user-owned peers only by their owner (anyone else gets 404). Without `publicKey`, an authenticated caller removes their own peer on the node; an anonymous caller gets 400.
+- Disconnect looks the peer up by `publicKey` alone and takes the node from the stored row. Anonymous peers can be removed by anyone who knows the key; user-owned peers only by their owner (anyone else gets 404).
 
 - `NodeApiClient` calls the node's management API: `POST {apiUrl}/peers` (no body) creates a peer and `DELETE {apiUrl}/peers/:publicKey` (URL-encoded, since base64 keys contain `+`, `/`, `=`) removes it, both with the `x-api-key` header. The node also exposes `GET /peers`, which nothing uses yet. Network errors, timeouts (10s) and non-2xx responses become `502`; details are logged, never sent to the client.
-- `VpnConnection` (`vpn_connections`) stores each peer's `publicKey`/`address`; it's the only way disconnect knows which peer to remove. Unique on `(userId, nodeId)` (NULLs are distinct in Postgres, so anonymous rows don't collide) and `(nodeId, publicKey)`. A user connecting again to the same node removes the old peer on the node first, then upserts the row.
+- `VpnConnection` (`vpn_connections`) stores each peer's `publicKey`/`address`; it's the only way disconnect knows which peer to remove. Unique on `(userId, nodeId)` (NULLs are distinct in Postgres, so anonymous rows don't collide) and globally on `publicKey`. A user connecting again to the same node removes the old peer on the node first, then upserts the row.
 - The node payload contains the client's WireGuard private key; it is passed through but never stored.
 
 ## Layout

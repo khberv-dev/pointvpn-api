@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   HttpCode,
   HttpStatus,
@@ -10,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { CurrentUserId } from '../../common/decorators/current-user-id.decorator.js';
 import { OptionalJwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
-import { DisconnectDto } from './dto/disconnect.dto.js';
 import { VpnService } from './vpn.service.js';
 
 /** Token optional: requests without `Authorization` are anonymous. */
@@ -29,13 +27,16 @@ export class VpnController {
     return this.vpnService.connect(userId, nodeId);
   }
 
-  @Post('disconnect/:nodeId')
+  /**
+   * `publicKey` is the peer key from the connect response, URL-encoded
+   * (base64 contains `+`, `/`, `=`). Express decodes it before it gets here.
+   */
+  @Post('disconnect/:publicKey')
   @HttpCode(HttpStatus.NO_CONTENT)
   disconnect(
     @CurrentUserId() userId: string | null,
-    @Param('nodeId', ParseUUIDPipe) nodeId: string,
-    @Body() dto: DisconnectDto,
+    @Param('publicKey') publicKey: string,
   ) {
-    return this.vpnService.disconnect(userId, nodeId, dto.publicKey);
+    return this.vpnService.disconnect(userId, publicKey);
   }
 }

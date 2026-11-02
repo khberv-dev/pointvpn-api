@@ -16,7 +16,6 @@ import { User } from '../../users/entities/user.entity.js';
  */
 @Entity('vpn_connections')
 @Unique(['userId', 'nodeId'])
-@Unique(['nodeId', 'publicKey'])
 export class VpnConnection {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -33,8 +32,11 @@ export class VpnConnection {
   @ManyToOne(() => Node, { onDelete: 'CASCADE' })
   node: Node;
 
-  /** Peer's public key on the node; identifies the peer for disconnect. */
-  @Column()
+  /**
+   * Peer's public key; identifies the peer for disconnect. Unique across all
+   * nodes (random 32-byte WireGuard keys don't collide in practice).
+   */
+  @Column({ unique: true })
   publicKey: string;
 
   @Column()
