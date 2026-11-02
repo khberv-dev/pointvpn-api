@@ -8,6 +8,6 @@ export class SubscriptionsController {
 
   @Get()
   findBySession(@Param('sessionId', ParseUUIDPipe) sessionId: string) {
-    return this.subscriptionsService.findBySession(sessionId);
+    return this.subscriptionsService.findActiveBySession(sessionId);
   }
 }

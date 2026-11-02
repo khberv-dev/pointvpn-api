@@ -38,7 +38,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `Plan` (`plans`): `name`, `price` (`numeric(12,2)`; a column transformer turns Postgres's string into a `number`). Public `GET /plans`, sorted by price. No create/update API: insert plans directly.
 - `Subscription` (`subscriptions`): `startDate`, `endDate` (timestamptz), linking one `Plan` to one `Session`. Deleting a session cascades to its subscriptions; deleting a plan that has subscriptions is blocked (`RESTRICT`).
-- Public `GET /sessions/:sessionId/subscriptions` (in `SubscriptionsController`) returns the session's subscriptions newest first, each with its `plan`; 404 if the session doesn't exist.
+- Public `GET /sessions/:sessionId/subscriptions` (in `SubscriptionsController`) returns only the session's **active** subscriptions (`endDate > now`, so future-dated ones are included), newest first, each with its `plan`; 404 if the session doesn't exist.
 - There is intentionally no public endpoint to create subscriptions; they are meant to be created by the payment flow.
 
 ## Layout
