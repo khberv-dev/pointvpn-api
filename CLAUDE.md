@@ -34,6 +34,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `Session` (`src/modules/sessions/`, table `sessions`) represents a client app install: `platform` (Postgres enum `android` | `ios`, `SessionPlatform` in code), `fcmToken`, `deviceName`, `createdAt`. Public routes: `POST /sessions` with `{ platform, fcmToken, deviceName }` creates a session and returns it (201); `GET /sessions/:id` returns one (404 if unknown). Every call inserts a new row; there is no dedup by `fcmToken`.
 
+## Plans and subscriptions
+
+- `Plan` (`plans`): `name`, `price` (`numeric(12,2)`; a column transformer turns Postgres's string into a `number`). Public `GET /plans`, sorted by price. No create/update API: insert plans directly.
+- `Subscription` (`subscriptions`): `startDate`, `endDate` (timestamptz), linking one `Plan` to one `Session`. Deleting a session cascades to its subscriptions; deleting a plan that has subscriptions is blocked (`RESTRICT`).
+- Public `GET /sessions/:sessionId/subscriptions` (in `SubscriptionsController`) returns the session's subscriptions newest first, each with its `plan`; 404 if the session doesn't exist.
+- There is intentionally no public endpoint to create subscriptions; they are meant to be created by the payment flow.
+
 ## Layout
 
 - `src/common/` — cross-cutting Nest building blocks: `decorators/`, `guards/`, `pipes/`.

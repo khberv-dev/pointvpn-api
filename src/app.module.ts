@@ -10,6 +10,8 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { NodesModule } from './modules/nodes/nodes.module.js';
 import { VpnModule } from './modules/vpn/vpn.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
+import { PlansModule } from './modules/plans/plans.module.js';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module.js';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { SessionsModule } from './modules/sessions/sessions.module.js';
     NodesModule,
     VpnModule,
     SessionsModule,
+    PlansModule,
+    SubscriptionsModule,
   ],
 })
 export class AppModule {}
