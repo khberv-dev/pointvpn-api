@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   HttpCode,
   HttpStatus,
@@ -8,11 +9,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUserId } from '../../common/decorators/current-user-id.decorator.js';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
+import { OptionalJwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
+import { DisconnectDto } from './dto/disconnect.dto.js';
 import { VpnService } from './vpn.service.js';
 
+/** Token optional: requests without `Authorization` are anonymous. */
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(OptionalJwtAuthGuard)
 export class VpnController {
   constructor(private readonly vpnService: VpnService) {}
 
@@ -20,7 +23,7 @@ export class VpnController {
   @Post('connect/:nodeId')
   @HttpCode(HttpStatus.OK)
   connect(
-    @CurrentUserId() userId: string,
+    @CurrentUserId() userId: string | null,
     @Param('nodeId', ParseUUIDPipe) nodeId: string,
   ) {
     return this.vpnService.connect(userId, nodeId);
@@ -29,9 +32,10 @@ export class VpnController {
   @Post('disconnect/:nodeId')
   @HttpCode(HttpStatus.NO_CONTENT)
   disconnect(
-    @CurrentUserId() userId: string,
+    @CurrentUserId() userId: string | null,
     @Param('nodeId', ParseUUIDPipe) nodeId: string,
+    @Body() dto: DisconnectDto,
   ) {
-    return this.vpnService.disconnect(userId, nodeId);
+    return this.vpnService.disconnect(userId, nodeId, dto.publicKey);
   }
 }

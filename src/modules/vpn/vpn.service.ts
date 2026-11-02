@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Node } from '../nodes/entities/node.entity.js';
@@ -16,38 +20,69 @@ export class VpnService {
   ) {}
 
   /**
-   * Provisions a peer for the user on the node and returns the node's payload.
-   * An existing peer for the same user and node is removed first.
+   * Provisions a peer on the node and returns the node's payload.
+   * For a user, an existing peer on the same node is replaced; anonymous
+   * callers (`userId` null) get a new peer every time.
    */
-  async connect(userId: string, nodeId: string): Promise<NodeConnectResponse> {
+  async connect(
+    userId: string | null,
+    nodeId: string,
+  ): Promise<NodeConnectResponse> {
     const node = await this.getNode(nodeId);
 
-    const existing = await this.connectionsRepository.findOneBy({
-      userId,
-      nodeId,
-    });
-    if (existing) {
-      await this.nodeApi.disconnect(node, existing.publicKey);
+    if (userId) {
+      const existing = await this.connectionsRepository.findOneBy({
+        userId,
+        nodeId,
+      });
+      if (existing) {
+        await this.nodeApi.disconnect(node, existing.publicKey);
+      }
     }
 
     const peer = await this.nodeApi.connect(node);
+    const row = {
+      userId,
+      nodeId,
+      publicKey: peer.publicKey,
+      address: peer.address,
+    };
 
-    await this.connectionsRepository.upsert(
-      { userId, nodeId, publicKey: peer.publicKey, address: peer.address },
-      ['userId', 'nodeId'],
-    );
+    if (userId) {
+      await this.connectionsRepository.upsert(row, ['userId', 'nodeId']);
+    } else {
+      await this.connectionsRepository.insert(row);
+    }
 
     return peer;
   }
 
-  async disconnect(userId: string, nodeId: string): Promise<void> {
+  /**
+   * Removes a peer. With `publicKey`, targets that peer: anonymous peers can be
+   * removed by anyone, user-owned ones only by their owner. Without it, removes
+   * the caller's own peer on the node (authenticated callers only).
+   */
+  async disconnect(
+    userId: string | null,
+    nodeId: string,
+    publicKey?: string,
+  ): Promise<void> {
+    if (!userId && !publicKey) {
+      throw new BadRequestException('publicKey is required');
+    }
+
     const node = await this.getNode(nodeId);
-    const connection = await this.connectionsRepository.findOneBy({
-      userId,
-      nodeId,
-    });
-    if (!connection) {
-      throw new NotFoundException('Not connected to this node');
+    const connection = publicKey
+      ? await this.connectionsRepository.findOneBy({ nodeId, publicKey })
+      : await this.connectionsRepository.findOneBy({
+          userId: userId!,
+          nodeId,
+        });
+
+    // A user-owned peer is reported as missing to anyone else, so public keys
+    // can't be used to probe or drop other users' connections.
+    if (!connection || (connection.userId && connection.userId !== userId)) {
+      throw new NotFoundException('Connection not found');
     }
 
     await this.nodeApi.disconnect(node, connection.publicKey);

@@ -40,7 +40,7 @@ export class NodeApiClient {
 
   private async request(
     node: Node,
-    method: 'GET' | 'POST' | 'DELETE',
+    method: 'POST' | 'DELETE',
     path: string,
     body?: unknown,
   ): Promise<Response> {

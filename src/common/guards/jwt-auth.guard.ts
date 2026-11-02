@@ -9,7 +9,33 @@ import type { Request } from 'express';
 import type { JwtPayload } from '../../modules/auth/jwt-payload.js';
 
 export interface AuthenticatedRequest extends Request {
-  user: JwtPayload;
+  /** Set by the guards; undefined for anonymous requests under `OptionalJwtAuthGuard`. */
+  user?: JwtPayload;
+}
+
+/**
+ * Verifies `Authorization: Bearer <token>` and stores the payload on
+ * `request.user`. Returns false when the header is absent; throws 401 when
+ * it is present but malformed or invalid.
+ */
+async function authenticate(
+  jwtService: JwtService,
+  request: AuthenticatedRequest,
+): Promise<boolean> {
+  const header = request.headers.authorization;
+  if (header === undefined) return false;
+
+  const [type, token] = header.split(' ');
+  if (type !== 'Bearer' || !token) {
+    throw new UnauthorizedException();
+  }
+
+  try {
+    request.user = await jwtService.verifyAsync<JwtPayload>(token);
+  } catch {
+    throw new UnauthorizedException();
+  }
+  return true;
 }
 
 /** Requires a valid `Authorization: Bearer <token>` header. */
@@ -19,18 +45,24 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-
-    if (type !== 'Bearer' || !token) {
+    if (!(await authenticate(this.jwtService, request))) {
       throw new UnauthorizedException();
     }
+    return true;
+  }
+}
 
-    try {
-      request.user = await this.jwtService.verifyAsync<JwtPayload>(token);
-    } catch {
-      throw new UnauthorizedException();
-    }
+/**
+ * Lets requests without an `Authorization` header through as anonymous.
+ * A header that is present but invalid is still rejected with 401.
+ */
+@Injectable()
+export class OptionalJwtAuthGuard implements CanActivate {
+  constructor(private readonly jwtService: JwtService) {}
 
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    await authenticate(this.jwtService, request);
     return true;
   }
 }
