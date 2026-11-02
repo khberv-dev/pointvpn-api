@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `src/modules/vpn/` provisions peers on nodes. Routes (JWT required): `POST /connect/:nodeId` → 200 with the node's connect payload **re-returned unchanged**; `POST /disconnect/:nodeId` → 204.
 
-- `NodeApiClient` calls the node's management API: `POST {apiUrl}/connect` (no body) and `POST {apiUrl}/disconnect` with `{ publicKey }`, both with the `x-api-key` header. Network errors, timeouts (10s) and non-2xx responses become `502`; details are logged, never sent to the client.
+- `NodeApiClient` calls the node's management API: `POST {apiUrl}/peers` (no body) creates a peer and `DELETE {apiUrl}/peers/:publicKey` (URL-encoded, since base64 keys contain `+`, `/`, `=`) removes it, both with the `x-api-key` header. The node also exposes `GET /peers`, which nothing uses yet. Network errors, timeouts (10s) and non-2xx responses become `502`; details are logged, never sent to the client.
 - `VpnConnection` (`vpn_connections`) stores the peer `publicKey`/`address` per user per node (unique on `userId, nodeId`); it's the only way disconnect knows which peer to remove. Connecting again to the same node removes the old peer on the node first, then upserts the row.
 - The node payload contains the client's WireGuard private key; it is passed through but never stored.
 

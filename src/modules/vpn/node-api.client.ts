@@ -3,7 +3,7 @@ import type { Node } from '../nodes/entities/node.entity.js';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
-/** Payload returned by a node's `POST /connect`, passed to the client as-is. */
+/** Payload returned by a node's `POST /peers`, passed to the client as-is. */
 export interface NodeConnectResponse {
   publicKey: string;
   address: string;
@@ -15,8 +15,9 @@ export interface NodeConnectResponse {
 export class NodeApiClient {
   private readonly logger = new Logger(NodeApiClient.name);
 
+  /** Creates a peer: `POST /peers`. */
   async connect(node: Node): Promise<NodeConnectResponse> {
-    const response = await this.request(node, 'connect');
+    const response = await this.request(node, 'POST', 'peers');
     const body = (await response.json().catch(() => null)) as unknown;
 
     if (!isConnectResponse(body)) {
@@ -27,12 +28,19 @@ export class NodeApiClient {
     return body;
   }
 
+  /** Removes a peer: `DELETE /peers/:publicKey`. */
   async disconnect(node: Node, publicKey: string): Promise<void> {
-    await this.request(node, 'disconnect', { publicKey });
+    // Keys are base64 and contain `+`, `/` and `=`.
+    await this.request(
+      node,
+      'DELETE',
+      `peers/${encodeURIComponent(publicKey)}`,
+    );
   }
 
   private async request(
     node: Node,
+    method: 'GET' | 'POST' | 'DELETE',
     path: string,
     body?: unknown,
   ): Promise<Response> {
@@ -41,7 +49,7 @@ export class NodeApiClient {
 
     try {
       response = await fetch(new URL(path, baseUrl), {
-        method: 'POST',
+        method,
         headers: {
           'x-api-key': node.apiKey,
           ...(body !== undefined && { 'content-type': 'application/json' }),
@@ -51,7 +59,7 @@ export class NodeApiClient {
       });
     } catch (error) {
       this.logger.error(
-        `Node ${node.id} POST /${path} failed: ${(error as Error).message}`,
+        `Node ${node.id} ${method} /${path} failed: ${(error as Error).message}`,
       );
       throw new BadGatewayException('VPN node is unavailable');
     }
@@ -59,7 +67,7 @@ export class NodeApiClient {
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       this.logger.error(
-        `Node ${node.id} POST /${path} responded ${response.status}: ${text.slice(0, 500)}`,
+        `Node ${node.id} ${method} /${path} responded ${response.status}: ${text.slice(0, 500)}`,
       );
       throw new BadGatewayException('VPN node rejected the request');
     }
