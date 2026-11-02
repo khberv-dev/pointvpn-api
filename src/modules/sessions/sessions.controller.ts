@@ -1,4 +1,11 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { CreateSessionDto } from './dto/create-session.dto.js';
 import { SessionsService } from './sessions.service.js';
 
@@ -10,5 +17,10 @@ export class SessionsController {
   @Post()
   create(@Body() dto: CreateSessionDto) {
     return this.sessionsService.create(dto);
+  }
+
+  @Get(':id')
+  findById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.sessionsService.findById(id);
   }
 }

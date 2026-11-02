@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Sessions
 
-`Session` (`src/modules/sessions/`, table `sessions`) represents a client app install: `platform` (Postgres enum `android` | `ios`, `SessionPlatform` in code), `fcmToken`, `deviceName`. `POST /sessions` (public) with `{ platform, fcmToken, deviceName }` creates a session and returns it (201). Every call inserts a new row; there is no dedup by `fcmToken`.
+`Session` (`src/modules/sessions/`, table `sessions`) represents a client app install: `platform` (Postgres enum `android` | `ios`, `SessionPlatform` in code), `fcmToken`, `deviceName`, `createdAt`. Public routes: `POST /sessions` with `{ platform, fcmToken, deviceName }` creates a session and returns it (201); `GET /sessions/:id` returns one (404 if unknown). Every call inserts a new row; there is no dedup by `fcmToken`.
 
 ## Layout
 

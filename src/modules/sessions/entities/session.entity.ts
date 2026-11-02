@@ -1,4 +1,9 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 export enum SessionPlatform {
   Android = 'android',
@@ -20,4 +25,7 @@ export class Session {
 
   @Column()
   deviceName: string;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
 }
