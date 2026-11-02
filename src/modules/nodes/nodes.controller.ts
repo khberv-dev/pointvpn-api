@@ -1,5 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard.js';
+import { Controller, Get } from '@nestjs/common';
 import { NodesService } from './nodes.service.js';
 
 export interface NodeResponse {
@@ -9,8 +8,8 @@ export interface NodeResponse {
   region: string;
 }
 
+/** Public: no authentication required. */
 @Controller('nodes')
-@UseGuards(JwtAuthGuard)
 export class NodesController {
   constructor(private readonly nodesService: NodesService) {}
 

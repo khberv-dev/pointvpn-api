@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Nodes
 
-`Node` (`src/modules/nodes/`) is a VPN server. `host` is what clients connect to; `apiUrl` + `apiKey` are for server-to-node management calls and must never be returned to clients (`apiKey` is `select: false`). `GET /nodes` (JWT required) returns only `id`, `name`, `host`, `region`. There is no create/update API: nodes are inserted directly into the `nodes` table.
+`Node` (`src/modules/nodes/`) is a VPN server. `host` is what clients connect to; `apiUrl` + `apiKey` are for server-to-node management calls and must never be returned to clients (`apiKey` is `select: false`). `GET /nodes` (public, no token needed) returns only `id`, `name`, `host`, `region`. There is no create/update API: nodes are inserted directly into the `nodes` table.
 
 ## VPN
 
