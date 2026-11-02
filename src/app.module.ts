@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { NodesModule } from './modules/nodes/nodes.module.js';
 import { VpnModule } from './modules/vpn/vpn.module.js';
+import { SessionsModule } from './modules/sessions/sessions.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { VpnModule } from './modules/vpn/vpn.module.js';
     AuthModule,
     NodesModule,
     VpnModule,
+    SessionsModule,
   ],
 })
 export class AppModule {}

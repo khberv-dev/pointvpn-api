@@ -30,6 +30,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `VpnConnection` (`vpn_connections`) stores each peer's `publicKey`/`address`; it's the only way disconnect knows which peer to remove. Unique on `(userId, nodeId)` (NULLs are distinct in Postgres, so anonymous rows don't collide) and globally on `publicKey`. A user connecting again to the same node removes the old peer on the node first, then upserts the row.
 - The node payload contains the client's WireGuard private key; it is passed through but never stored.
 
+## Sessions
+
+`Session` (`src/modules/sessions/`, table `sessions`) represents a client app install: `platform` (Postgres enum `android` | `ios`, `SessionPlatform` in code), `fcmToken`, `deviceName`. `POST /sessions` (public) with `{ platform, fcmToken, deviceName }` creates a session and returns it (201). Every call inserts a new row; there is no dedup by `fcmToken`.
+
 ## Layout
 
 - `src/common/` — cross-cutting Nest building blocks: `decorators/`, `guards/`, `pipes/`.
