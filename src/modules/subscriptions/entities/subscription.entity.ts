@@ -2,7 +2,10 @@ import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Plan } from '../../plans/entities/plan.entity.js';
 import { Session } from '../../sessions/entities/session.entity.js';
 
-/** A session's access to a plan for a period of time. */
+/**
+ * A session's access to a plan. Created inactive with no dates when the
+ * session requests it; activated by a successful payment of its invoice.
+ */
 @Entity('subscriptions')
 export class Subscription {
   @PrimaryGeneratedColumn('uuid')
@@ -21,9 +24,15 @@ export class Subscription {
   @ManyToOne(() => Session, { onDelete: 'CASCADE' })
   session: Session;
 
-  @Column({ type: 'timestamptz' })
-  startDate: Date;
+  /** True once paid. */
+  @Column({ default: false })
+  isActive: boolean;
 
-  @Column({ type: 'timestamptz' })
-  endDate: Date;
+  /** Set when paid. */
+  @Column({ type: 'timestamptz', nullable: true })
+  startDate: Date | null;
+
+  /** Set when paid. */
+  @Column({ type: 'timestamptz', nullable: true })
+  endDate: Date | null;
 }

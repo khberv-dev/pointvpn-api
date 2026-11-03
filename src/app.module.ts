@@ -12,6 +12,7 @@ import { VpnModule } from './modules/vpn/vpn.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
 import { PlansModule } from './modules/plans/plans.module.js';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module.js';
+import { InvoicesModule } from './modules/invoices/invoices.module.js';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     SessionsModule,
     PlansModule,
     SubscriptionsModule,
+    InvoicesModule,
   ],
 })
 export class AppModule {}

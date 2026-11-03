@@ -36,10 +36,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Plans and subscriptions
 
-- `Plan` (`plans`): `name`, `price` (`numeric(12,2)`; a column transformer turns Postgres's string into a `number`). Public `GET /plans`, sorted by price. No create/update API: insert plans directly.
-- `Subscription` (`subscriptions`): `startDate`, `endDate` (timestamptz), linking one `Plan` to one `Session`. Deleting a session cascades to its subscriptions; deleting a plan that has subscriptions is blocked (`RESTRICT`).
-- Public `GET /sessions/:sessionId/subscriptions` (in `SubscriptionsController`) returns only the session's **active** subscriptions (`endDate > now`, so future-dated ones are included), newest first, each with its `plan`; 404 if the session doesn't exist.
-- There is intentionally no public endpoint to create subscriptions; they are meant to be created by the payment flow.
+- `Plan` (`plans`): `name`, `price` in **RUB** (`numeric(12,2)`; a column transformer turns Postgres's string into a `number`). Public `GET /plans`, sorted by price. No create/update API: insert plans directly.
+- `Subscription` (`subscriptions`): `isActive` (default false), `startDate`/`endDate` (nullable timestamptz, set on payment), linking one `Plan` to one `Session`. Deleting a session cascades to its subscriptions; deleting a plan that has subscriptions is blocked (`RESTRICT`).
+- Public `GET /sessions/:sessionId/subscriptions` returns only **active** subscriptions (`isActive = true` and `endDate > now`), newest first, each with its `plan`; 404 if the session doesn't exist.
+
+## Payments (Multicard / RHMT)
+
+Flow ("payment on the Multicard page", https://docs.multicard.uz — `/llms.txt` there indexes every page as markdown):
+
+1. `POST /sessions/:sessionId/subscriptions` `{ planId }` (public) creates an inactive subscription, then an `Invoice` row, then the Multicard invoice. Returns 201 `{ subscriptionId, invoiceId, amount, checkoutUrl }`; the app opens `checkoutUrl`.
+2. Multicard calls `POST /payment/handle` (`PaymentController`, = `RHMT_CALLBACK_URL`) after a successful payment. It marks the invoice paid and activates the subscription for **30 days from payment time** (`SUBSCRIPTION_DAYS` in `invoices.service.ts`).
+
+- `RhmtService` (`src/modules/rhmt/`): `POST {RHMT_API_URL}/auth` with `{ application_id, secret }` returns a JWT valid ~24h (`expiry` is GMT+5). The token is cached in memory, concurrent callers share one auth request, and a 401 triggers one re-auth and retry. `POST /payment/invoice` sends `{ store_id, amount, invoice_id, callback_url }`. `ofd` is deliberately omitted even though the docs mark it required. Multicard can return errors with HTTP 200 and `success: false`, so check the body; failures become 502 and the invoice is marked `failed`.
+- `amount` is in tiyin: `Math.round(plan.price × ROUBLE_PRICE × 100)`, where `ROUBLE_PRICE` is UZS per RUB. `invoice_id` is our `Invoice.id` (uuid).
+- **Callback contract**: always respond HTTP 200 with `{ success, message? }`. `success: false` or a non-200 makes Multicard **cancel and refund** the payment; a 500 or timeout makes it retry. Checks, in order: payload shape, `sign = md5(store_id + invoice_id + amount + RHMT_SECRET)` (case-insensitive, timing-safe), store id, invoice exists, amount matches. Processing runs in a transaction with a row lock on the invoice; a repeat callback with the same `uuid` on a paid invoice returns success (idempotent), while a different `uuid` is rejected (refunded).
+- The callback body is typed as an interface, so the global `ValidationPipe` (whitelist/forbidNonWhitelisted) doesn't strip Multicard's extra fields; the service validates it by hand.
+- Required env: `RHMT_API_URL` (sandbox `https://dev-mesh.multicard.uz`, prod `https://mesh.multicard.uz`), `RHMT_APPLICATION_ID`, `RHMT_SECRET`, `RHMT_STORE_ID`, `RHMT_CALLBACK_URL`, `ROUBLE_PRICE`.
 
 ## Layout
 
@@ -75,7 +87,7 @@ No test files exist yet. Vitest runs with `globals: true`, so `describe`/`it`/`e
 ## Conventions and gotchas
 
 - **ESM with NodeNext resolution** (`"type": "module"`, `module: nodenext`): relative imports must use the `.js` extension even in `.ts` files (e.g. `import { AppModule } from './app.module.js'`). `main.ts` relies on top-level `await`.
-- **Configuration**: `ConfigModule.forRoot({ isGlobal: true })` loads `.env`, so `ConfigService` can be injected anywhere without importing `ConfigModule`. `PORT`, `JWT_SECRET` and the `DB_*` vars are read with `getOrThrow`, so the app won't start if any are missing.
+- **Configuration**: `ConfigModule.forRoot({ isGlobal: true })` loads `.env`, so `ConfigService` can be injected anywhere without importing `ConfigModule`. `PORT`, `JWT_SECRET`, the `DB_*` and the `RHMT_*`/`ROUBLE_PRICE` vars are read with `getOrThrow`, so the app won't start if any are missing.
 - **Lint** is oxlint, not ESLint. `no-explicit-any` is off. `no-floating-promises` is an error, so every promise must be awaited or handled.
 - **Formatting**: Prettier with single quotes and trailing commas.
 - `tsconfig.build.json` excludes `*spec.ts` and `test/` from the build. `strictPropertyInitialization` is off, so DI-injected class properties don't need initializers.
